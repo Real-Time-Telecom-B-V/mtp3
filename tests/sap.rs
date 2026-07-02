@@ -5,7 +5,7 @@
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
-use ss7_mtp3::{
+use mtp3::{
     Mtp3Error, Mtp3Event, Mtp3Msu, Mtp3UserPart, NetworkIndicator, PointCode, ServiceIndicator,
     Variant,
 };

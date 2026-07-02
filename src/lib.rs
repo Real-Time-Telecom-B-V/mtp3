@@ -1,4 +1,4 @@
-//! # ss7-mtp3
+//! # mtp3
 //!
 //! The SS7 **MTP3-User Service Access Point** and point-code types — the shared
 //! seam of an SS7 network stack.
@@ -18,7 +18,7 @@
 //! Linux-only SCTP transport behind their own feature flags.
 //!
 //! ```
-//! use ss7_mtp3::{Mtp3Msu, ServiceIndicator, NetworkIndicator, PointCode, Variant};
+//! use mtp3::{Mtp3Msu, ServiceIndicator, NetworkIndicator, PointCode, Variant};
 //!
 //! let msu = Mtp3Msu {
 //!     si: ServiceIndicator::SCCP,

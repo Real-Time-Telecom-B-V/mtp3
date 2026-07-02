@@ -1,4 +1,4 @@
-# ss7-mtp3 — overview
+# mtp3 — overview
 
 The shared seam of an SS7 network stack: the **MTP3-User Service Access Point**
 (`Mtp3UserPart`) plus the point-code and SIO types it needs. Pure and

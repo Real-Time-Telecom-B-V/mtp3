@@ -6,9 +6,9 @@
 #   * sbom           — SPDX + CycloneDX, attached to the release.
 #   * github-release — notes + SBOMs.
 #
-# ss7-mtp3 is a pure-Rust crate — there are no wheels, no PyPI, no maturin.
+# mtp3 is a pure-Rust crate — there are no wheels, no PyPI, no maturin.
 #
-# PREREQUISITE for the crates-io job: own `ss7-mtp3` on crates.io and configure
+# PREREQUISITE for the crates-io job: own `mtp3` on crates.io and configure
 # Trusted Publishing (OIDC) on the crate, pointing at this repo + this workflow.
 # The first publish of a brand-new crate needs a one-shot `publish-new` token
 # (Trusted Publishing can't bootstrap a crate that doesn't exist yet).
@@ -58,10 +58,10 @@ jobs:
         # the -A header is mandatory (a bare curl would 403 and look "unpublished").
         run: |
           ver="${GITHUB_REF_NAME#v}"
-          ua="ss7-mtp3-release-ci (github.com/Real-Time-Telecom-B-V/ss7-mtp3)"
-          if curl -sf -A "$ua" "https://crates.io/api/v1/crates/ss7-mtp3/${ver}" -o /dev/null; then
+          ua="mtp3-release-ci (github.com/Real-Time-Telecom-B-V/mtp3)"
+          if curl -sf -A "$ua" "https://crates.io/api/v1/crates/mtp3/${ver}" -o /dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::ss7-mtp3 ${ver} already on crates.io — skipping publish."
+            echo "::notice::mtp3 ${ver} already on crates.io — skipping publish."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -86,14 +86,14 @@ jobs:
         run: cargo install cargo-sbom
       - name: Generate SPDX + CycloneDX SBOMs
         run: |
-          cargo sbom --output-format spdx_json_2_3 > "ss7-mtp3-${GITHUB_REF_NAME}.spdx.json"
-          cargo sbom --output-format cyclone_dx_json_1_4 > "ss7-mtp3-${GITHUB_REF_NAME}.cdx.json"
+          cargo sbom --output-format spdx_json_2_3 > "mtp3-${GITHUB_REF_NAME}.spdx.json"
+          cargo sbom --output-format cyclone_dx_json_1_4 > "mtp3-${GITHUB_REF_NAME}.cdx.json"
       - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: |
-            ss7-mtp3-*.spdx.json
-            ss7-mtp3-*.cdx.json
+            mtp3-*.spdx.json
+            mtp3-*.cdx.json
 
   github-release:
     needs: [crates-io, sbom]

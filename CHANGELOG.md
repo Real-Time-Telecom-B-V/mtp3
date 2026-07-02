@@ -20,4 +20,4 @@ First release — the MTP3-User Service Access Point for the SS7 stack.
   format, components), consolidated here so the whole stack shares one type.
 - Tests incl. an async in-memory provider and the composable-router pattern.
 
-[1.0.0]: https://github.com/Real-Time-Telecom-B-V/ss7-mtp3/releases/tag/v1.0.0
+[1.0.0]: https://github.com/Real-Time-Telecom-B-V/mtp3/releases/tag/v1.0.0

@@ -1,5 +1,5 @@
 [package]
-name = "ss7-mtp3"
+name = "mtp3"
 version = "1.0.0"
 edition = "2021"
 rust-version = "1.80"
@@ -7,8 +7,8 @@ description = "The SS7 MTP3-User SAP (Mtp3UserPart) + point codes — the seam S
 authors = ["Real Time Telecom B.V."]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/Real-Time-Telecom-B-V/ss7-mtp3"
-homepage = "https://github.com/Real-Time-Telecom-B-V/ss7-mtp3"
+repository = "https://github.com/Real-Time-Telecom-B-V/mtp3"
+homepage = "https://github.com/Real-Time-Telecom-B-V/mtp3"
 keywords = ["ss7", "mtp3", "sigtran", "sccp", "telecom"]
 categories = ["network-programming"]
 

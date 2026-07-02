@@ -1,4 +1,4 @@
-# cargo-deny — dependency-graph security / license / source policy for ss7-mtp3.
+# cargo-deny — dependency-graph security / license / source policy for mtp3.
 # Local: `cargo deny check`  ·  CI: .github/workflows/audit.yml
 # Docs: https://embarkstudios.github.io/cargo-deny/
 
@@ -18,7 +18,7 @@ ignore = []
 [bans]
 multiple-versions = "warn"
 wildcards = "warn"
-# ss7-mtp3 is pure Rust: the only runtime deps are thiserror, serde, and
+# mtp3 is pure Rust: the only runtime deps are thiserror, serde, and
 # async-trait — all MIT/Apache. No C libraries are linked, so there is no
 # C-FFI ban list here.
 

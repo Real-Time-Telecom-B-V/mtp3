@@ -1,6 +1,6 @@
 # Versioning
 
-`ss7-mtp3` follows [Semantic Versioning 2.0.0](https://semver.org/). The public
+`mtp3` follows [Semantic Versioning 2.0.0](https://semver.org/). The public
 API — the `Mtp3UserPart` trait, the `Mtp3Msu`/`Mtp3Event`/`Mtp3Status` types, the
 `ServiceIndicator`/`NetworkIndicator` types, and `PointCode`/`Variant` — is the
 contract.

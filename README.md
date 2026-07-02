@@ -1,8 +1,8 @@
-# ss7-mtp3
+# mtp3
 
-[![crates.io](https://img.shields.io/crates/v/ss7-mtp3.svg)](https://crates.io/crates/ss7-mtp3)
-[![docs.rs](https://docs.rs/ss7-mtp3/badge.svg)](https://docs.rs/ss7-mtp3)
-[![CI](https://github.com/Real-Time-Telecom-B-V/ss7-mtp3/actions/workflows/ci.yml/badge.svg)](https://github.com/Real-Time-Telecom-B-V/ss7-mtp3/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/mtp3.svg)](https://crates.io/crates/mtp3)
+[![docs.rs](https://docs.rs/mtp3/badge.svg)](https://docs.rs/mtp3)
+[![CI](https://github.com/Real-Time-Telecom-B-V/mtp3/actions/workflows/ci.yml/badge.svg)](https://github.com/Real-Time-Telecom-B-V/mtp3/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 The SS7 **MTP3-User Service Access Point** (`Mtp3UserPart`) and point-code types
@@ -14,10 +14,10 @@ Pure and transport-independent: no SCTP, no async runtime of its own, so it
 stays portable and every consumer can unit-test against it.
 
 ```rust
-use ss7_mtp3::{Mtp3Msu, Mtp3UserPart, PointCode, ServiceIndicator, NetworkIndicator, Variant};
+use mtp3::{Mtp3Msu, Mtp3UserPart, PointCode, ServiceIndicator, NetworkIndicator, Variant};
 
 // SCCP is generic over the SAP — it doesn't care whether `mtp3` sits underneath it:
-async fn send_sccp(mtp3: &dyn Mtp3UserPart, sccp_bytes: Vec<u8>) -> Result<(), ss7_mtp3::Mtp3Error> {
+async fn send_sccp(mtp3: &dyn Mtp3UserPart, sccp_bytes: Vec<u8>) -> Result<(), mtp3::Mtp3Error> {
     mtp3.send(Mtp3Msu {
         si: ServiceIndicator::SCCP,
         ni: NetworkIndicator::International,
