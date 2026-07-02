@@ -3,8 +3,8 @@
 //! The SS7 **MTP3-User Service Access Point** and point-code types — the shared
 //! seam of an SS7 network stack.
 //!
-//! [`Mtp3UserPart`] is the interface SCCP (and ISUP) are written against, the
-//! same role jSS7 gives its `Mtp3UserPart`. It is implemented by:
+//! [`Mtp3UserPart`] is the interface SCCP (and ISUP) are written against. It is
+//! implemented by:
 //!
 //! - the **MTP3** network layer (native, riding M2PA links), and
 //! - **M3UA** (RFC 4666), the IP adaptation of the same service.

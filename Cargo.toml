@@ -17,5 +17,8 @@ thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 async-trait = "0.1"
 
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros", "sync"] }
+
 [lints.clippy]
 correctness = { level = "deny", priority = -1 }

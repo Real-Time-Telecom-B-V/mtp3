@@ -1,9 +1,9 @@
 //! The MTP3-User Service Access Point (Q.701 MTP-TRANSFER + network management).
 //!
-//! [`Mtp3UserPart`] is the seam SCCP (and ISUP) are written against — the same
-//! role jSS7 gives its `Mtp3UserPart` interface. Two things implement it: the
-//! MTP3 network layer (over M2PA links) and M3UA (RFC 4666). A user is generic
-//! over the trait, so it runs unchanged over either.
+//! [`Mtp3UserPart`] is the seam SCCP (and ISUP) are written against — the
+//! MTP3-user interface. Two things implement it: the MTP3 network layer (over
+//! M2PA links) and M3UA (RFC 4666). A user is generic over the trait, so it
+//! runs unchanged over either.
 
 use thiserror::Error;
 
@@ -65,7 +65,7 @@ impl NetworkIndicator {
 
 /// An MTP3 Message Signal Unit as seen at the MTP3-user boundary — the routing
 /// label (OPC/DPC/SLS), the SIO fields (SI/NI/priority), and the user payload.
-/// The analogue of jSS7's `Mtp3TransferPrimitive`.
+/// The parameters of the MTP-TRANSFER primitive (Q.701).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mtp3Msu {
     /// Service Indicator (which MTP3-user; SCCP = 3).
