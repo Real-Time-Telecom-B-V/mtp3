@@ -1,0 +1,21 @@
+[package]
+name = "ss7-mtp3"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+description = "The SS7 MTP3-User SAP (Mtp3UserPart) + point codes — the seam SCCP/ISUP sit on, implemented by MTP3 and M3UA"
+authors = ["Real Time Telecom B.V."]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/Real-Time-Telecom-B-V/ss7-mtp3"
+homepage = "https://github.com/Real-Time-Telecom-B-V/ss7-mtp3"
+keywords = ["ss7", "mtp3", "sigtran", "sccp", "telecom"]
+categories = ["network-programming"]
+
+[dependencies]
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+async-trait = "0.1"
+
+[lints.clippy]
+correctness = { level = "deny", priority = -1 }
