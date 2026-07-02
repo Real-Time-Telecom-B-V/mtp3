@@ -5,13 +5,6 @@ API — the `Mtp3UserPart` trait, the `Mtp3Msu`/`Mtp3Event`/`Mtp3Status` types, 
 `ServiceIndicator`/`NetworkIndicator` types, and `PointCode`/`Variant` — is the
 contract.
 
-## Pre-1.0
-
-This crate is **0.x**: it defines a Service Access Point that its first consumers
-(`m3ua`, `mtp3`, `sccp`) are still wiring in. Per SemVer, **minor `0.y` bumps may
-make breaking changes** while the SAP settles. It goes 1.0 once at least one real
-provider (M3UA or MTP3-over-M2PA) and SCCP consume it end to end.
-
 ## The git tag is the source of truth
 
 `Cargo.toml`'s `version` matches the release tag; the release workflow's
