@@ -1,0 +1,36 @@
+# Maturin build config for the `mtp3` wheel. The version is single-sourced from
+# Cargo.toml (`dynamic = ["version"]`), so PyPI and crates.io always ship the same
+# number. `extension-module` is the ONLY place that feature is enabled — never by
+# `cargo test`/`cargo clippy` (it un-links libpython and breaks Rust test binaries).
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "mtp3"
+description = "Rust-backed SS7 MTP3-User SAP types + point codes for Python"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Real Time Telecom B.V." }]
+keywords = ["ss7", "mtp3", "sigtran", "sccp", "telecom"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Telecommunications Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: Free Threading :: 3 - Stable",
+    "Topic :: Communications",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/Real-Time-Telecom-B-V/mtp3"
+Repository = "https://github.com/Real-Time-Telecom-B-V/mtp3"
+
+[tool.maturin]
+# Mixed layout: compiled ext at `mtp3._mtp3`, pure-Python shim under python/.
+module-name = "mtp3._mtp3"
+python-source = "python"
+features = ["extension-module"]

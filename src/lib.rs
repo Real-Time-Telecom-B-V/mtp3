@@ -35,6 +35,9 @@
 pub mod point_code;
 pub mod sap;
 
+#[cfg(feature = "python")]
+pub mod python;
+
 pub use point_code::{PointCode, PointCodeError, Variant};
 pub use sap::{
     Mtp3Error, Mtp3Event, Mtp3Msu, Mtp3Status, Mtp3UserPart, NetworkIndicator, ServiceIndicator,

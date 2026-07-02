@@ -13,6 +13,13 @@ generic over one trait; **MTP3** (native, over M2PA links) and **M3UA**
 Pure and transport-independent: no SCTP, no async runtime of its own, so it
 stays portable and every consumer can unit-test against it.
 
+It ships as **both** a Rust crate (`cargo add mtp3`) and a Rust-backed Python
+wheel (`pip install mtp3`), built from one source tree and one version. The
+Python wheel exposes the value types — `PointCode` / `Variant`,
+`ServiceIndicator`, `NetworkIndicator`, and the `Mtp3Msu` SAP-boundary struct —
+so tooling and tests can build routing labels without reimplementing point-code
+maths. The async provider trait stays in Rust.
+
 ```rust
 use mtp3::{Mtp3Msu, Mtp3UserPart, PointCode, ServiceIndicator, NetworkIndicator, Variant};
 
@@ -28,6 +35,19 @@ async fn send_sccp(mtp3: &dyn Mtp3UserPart, sccp_bytes: Vec<u8>) -> Result<(), m
         data: sccp_bytes,
     }).await
 }
+```
+
+```python
+import mtp3
+
+opc = mtp3.PointCode.parse("2-1-3", mtp3.Variant.Itu)   # or "515" (decimal)
+dpc = mtp3.PointCode.parse("2-1-4", mtp3.Variant.Itu)
+msu = mtp3.Mtp3Msu(
+    mtp3.ServiceIndicator.SCCP,
+    mtp3.NetworkIndicator.International,
+    opc, dpc, sls=0, data=b"...",
+)
+print(opc.value(), opc.components())                     # 4107 [2, 1, 3]
 ```
 
 ## The SAP
@@ -70,12 +90,46 @@ single SAP, and both providers can serve one SCCP at once. See
 
 More: [`docs/OVERVIEW.md`](docs/OVERVIEW.md).
 
+## Performance
+
+mtp3 is a types/SAP crate, not a wire codec, so the hot path a consumer hits (an
+STP routing table, config load) is point-code parsing and formatting. Single-core,
+`cargo bench` ([`benches/pointcode.rs`](benches/pointcode.rs)); indicative numbers:
+
+| Operation | Time |
+|---|---|
+| `PointCode::parse` — structured `a-b-c` | ~16 ns |
+| `PointCode::parse` — plain decimal | ~12 ns |
+| `PointCode::components` | < 1 ns |
+| `PointCode::to_string` | ~37 ns |
+
+A counting-allocator [leak check](examples/leak_check.rs)
+(`./scripts/mem_leak_test.sh`) hammers point-code parse/format and `Mtp3Msu`
+construct/clone and asserts **live bytes stay flat** (Δ 0 over millions of
+cycles). Both run in CI.
+
+The Python wheel is the same Rust behind PyO3; it is declared `gil_used = false`,
+so it loads on free-threaded ("no-GIL") CPython 3.13t / 3.14t.
+
+## Install
+
+```bash
+cargo add mtp3          # Rust crate (zero pyo3 in the default build)
+pip install mtp3        # Rust-backed Python wheel (the value types)
+```
+
 ## Development
 
 ```bash
-cargo test
+cargo test                              # unit + integration + doctests
+cargo test --features python            # + the PyO3 binding face
 cargo clippy --all-targets -- -D warnings
-cargo deny check
+cargo bench --no-run
+./scripts/mem_leak_test.sh              # live-bytes leak check (PASS/FAIL)
+cargo deny check                        # advisories, licenses, sources
+
+# Python wheel
+maturin develop && pytest python/tests -q
 ```
 
 ## License
