@@ -171,7 +171,7 @@ impl fmt::Display for PointCode {
 /// — a point code is meaningless without its variant. Config types carry the
 /// variant alongside and call [`PointCode::parse`].
 impl PointCode {
-    /// Convenience: parse with the ITU variant (the RTT default network).
+    /// Convenience: parse with the ITU variant (the most common variant).
     pub fn parse_itu(s: &str) -> Result<Self, PointCodeError> {
         Self::parse(s, Variant::Itu)
     }
