@@ -5,6 +5,12 @@ All notable changes are documented here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See
 [VERSIONING.md](VERSIONING.md) for the policy.
 
+## [1.0.1]
+
+### Changed
+- Docs: neutral wording for the default point-code variant. No API or behaviour
+  change.
+
 ## [1.0.0]
 
 First release — the MTP3-User Service Access Point for the SS7 stack.
@@ -20,4 +26,5 @@ First release — the MTP3-User Service Access Point for the SS7 stack.
   format, components), consolidated here so the whole stack shares one type.
 - Tests incl. an async in-memory provider and the composable-router pattern.
 
+[1.0.1]: https://github.com/Real-Time-Telecom-B-V/mtp3/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Real-Time-Telecom-B-V/mtp3/releases/tag/v1.0.0
