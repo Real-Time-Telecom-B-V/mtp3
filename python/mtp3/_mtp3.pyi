@@ -88,8 +88,9 @@ class NetworkIndicator:
 class Mtp3Msu:
     """An MTP3 MSU at the MTP3-user boundary — routing label + SIO + payload.
 
-    A data holder (no wire encode here): the parameters of the MTP-TRANSFER
-    primitive (Q.701). A provider (MTP3 over M2PA, or M3UA) serialises it.
+    The parameters of the MTP-TRANSFER primitive (Q.701). :meth:`encode` /
+    :meth:`decode` render it to and from the on-wire MSU (SIO + routing label +
+    SIF) for a given :class:`Variant` — ITU Q.704 or ANSI T1.111.
     """
 
     si: ServiceIndicator
@@ -110,3 +111,8 @@ class Mtp3Msu:
         sls: int = 0,
         data: bytes = b"",
     ) -> None: ...
+    def encode(self, variant: Variant) -> bytes:
+        """Encode to the on-wire MSU bytes (SIO + routing label + SIF)."""
+    @staticmethod
+    def decode(data: bytes, variant: Variant) -> Mtp3Msu:
+        """Decode on-wire MSU bytes; raises ``Mtp3Error`` if too short."""

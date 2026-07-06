@@ -74,10 +74,37 @@ single SAP, and both providers can serve one SCCP at once. See
 ## Types
 
 - `Mtp3Msu` — routing label (OPC/DPC/SLS) + SIO (SI/NI/priority) + user payload.
+  `encode` / `decode` render it to and from the on-wire MSU for a `Variant`.
 - `Mtp3Event` — `Transfer` (MTP-TRANSFER.ind) / `Pause` / `Resume` / `Status`.
 - `ServiceIndicator` (SCCP=3, ISUP=5, …), `NetworkIndicator` (intl/national).
 - `PointCode` / `Variant` — ITU (14-bit), ANSI/China (24-bit); parse, format,
   components.
+
+## On-wire MSU
+
+`Mtp3Msu::encode(variant)` builds the MSU bytes — the SIO octet, the routing
+label, then the SIF (the MTP3-user payload) — and `decode` reverses it. The
+routing-label layout follows the variant: **ITU** (Q.704) packs a 32-bit
+little-endian label (`DPC | OPC << 14 | SLS << 28`); **ANSI / China** (T1.111)
+lay out DPC (3 octets), OPC (3 octets), then a one-octet SLS, each point code
+least-significant octet first. It is the one wire format this crate owns, so
+M3UA and MTP3-over-M2PA providers stop hand-rolling it.
+
+```rust
+use mtp3::{Mtp3Msu, NetworkIndicator, PointCode, ServiceIndicator, Variant};
+
+let msu = Mtp3Msu {
+    si: ServiceIndicator::SCCP,
+    ni: NetworkIndicator::International,
+    mp: 0,
+    opc: PointCode::parse("2-1-3", Variant::Itu).unwrap(),
+    dpc: PointCode::parse("4-2-1", Variant::Itu).unwrap(),
+    sls: 7,
+    data: vec![0x09, 0x81, 0x03, 0x0e, 0x19],
+};
+let wire = msu.encode(Variant::Itu);
+assert_eq!(msu, Mtp3Msu::decode(&wire, Variant::Itu).unwrap());
+```
 
 ## Where it fits
 
@@ -92,8 +119,9 @@ More: [`docs/OVERVIEW.md`](docs/OVERVIEW.md).
 
 ## Performance
 
-mtp3 is a types/SAP crate, not a wire codec, so the hot path a consumer hits (an
-STP routing table, config load) is point-code parsing and formatting. Single-core,
+Beyond the MSU routing label, mtp3 is a types/SAP crate, so the hot path a
+consumer hits (an STP routing table, config load) is point-code parsing and
+formatting. Single-core,
 `cargo bench` ([`benches/pointcode.rs`](benches/pointcode.rs)); indicative numbers:
 
 | Operation | Time |

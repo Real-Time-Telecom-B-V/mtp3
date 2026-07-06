@@ -1,6 +1,6 @@
 [package]
 name = "mtp3"
-version = "1.0.1"
+version = "1.1.0"
 edition = "2021"
 rust-version = "1.80"
 description = "The SS7 MTP3-User SAP (Mtp3UserPart) + point codes — the seam SCCP/ISUP sit on, implemented by MTP3 and M3UA"

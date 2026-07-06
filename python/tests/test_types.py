@@ -130,3 +130,53 @@ def test_mtp3_msu_mutable_fields() -> None:
     assert msu.sls == 7
     assert msu.data == b"\x01\x02"
     assert msu.dpc.value() == 2
+
+
+def test_mtp3_msu_encode_itu_byte_exact() -> None:
+    # Same known-answer vector the Rust side asserts: OPC 2-1-3, DPC 4-2-1,
+    # SLS 7, SI SCCP, NI international, over an SCCP SIF.
+    msu = mtp3.Mtp3Msu(
+        mtp3.ServiceIndicator.SCCP,
+        mtp3.NetworkIndicator.International,
+        mtp3.PointCode.from_components((2, 1, 3), mtp3.Variant.Itu),
+        mtp3.PointCode.from_components((4, 2, 1), mtp3.Variant.Itu),
+        sls=7,
+        data=bytes([0x09, 0x81, 0x03, 0x0E, 0x19]),
+    )
+    wire = msu.encode(mtp3.Variant.Itu)
+    assert wire == bytes([0x03, 0x11, 0xE0, 0x02, 0x74, 0x09, 0x81, 0x03, 0x0E, 0x19])
+
+    back = mtp3.Mtp3Msu.decode(wire, mtp3.Variant.Itu)
+    assert back.opc.value() == 4107
+    assert back.dpc.value() == 8209
+    assert back.sls == 7
+    assert back.si == mtp3.ServiceIndicator.SCCP
+    assert back.ni == mtp3.NetworkIndicator.International
+    assert back.data == bytes([0x09, 0x81, 0x03, 0x0E, 0x19])
+
+
+def test_mtp3_msu_encode_ansi_t1111() -> None:
+    # T1.111 hand-built vector: DPC 4-5-6, OPC 1-2-3 laid out LSO first,
+    # NI national, priority 1, SLS 0x1F.
+    msu = mtp3.Mtp3Msu(
+        mtp3.ServiceIndicator.SCCP,
+        mtp3.NetworkIndicator.National,
+        mtp3.PointCode.from_components((1, 2, 3), mtp3.Variant.Ansi),
+        mtp3.PointCode.from_components((4, 5, 6), mtp3.Variant.Ansi),
+        mp=1,
+        sls=0x1F,
+        data=bytes([0xAA, 0xBB]),
+    )
+    wire = msu.encode(mtp3.Variant.Ansi)
+    assert wire == bytes([0x93, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x1F, 0xAA, 0xBB])
+
+    back = mtp3.Mtp3Msu.decode(wire, mtp3.Variant.Ansi)
+    assert back.opc.components() == [1, 2, 3]
+    assert back.dpc.components() == [4, 5, 6]
+    assert back.mp == 1
+    assert back.sls == 0x1F
+
+
+def test_mtp3_msu_decode_too_short_raises() -> None:
+    with pytest.raises(mtp3.Mtp3Error):
+        mtp3.Mtp3Msu.decode(bytes([0x03, 0x11, 0xE0, 0x02]), mtp3.Variant.Itu)
