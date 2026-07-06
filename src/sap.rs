@@ -7,7 +7,7 @@
 
 use thiserror::Error;
 
-use crate::point_code::PointCode;
+use crate::point_code::{PointCode, Variant};
 
 /// Service Indicator — the low nibble of the SIO, naming the MTP3-user that
 /// owns the message. Opaque `u8`; the well-known values have constants.
@@ -84,6 +84,122 @@ pub struct Mtp3Msu {
     pub data: Vec<u8>,
 }
 
+impl Mtp3Msu {
+    /// The SIO octet: SI in bits 0..3, message priority in bits 4..5 (spare, so
+    /// zero, for ITU international; the priority field for ANSI), NI in bits 6..7.
+    fn sio(&self) -> u8 {
+        (self.ni.bits() << 6) | ((self.mp & 0x03) << 4) | (self.si.0 & 0x0F)
+    }
+
+    /// Encode to the on-wire MSU: SIO octet, then the routing label, then the SIF
+    /// (the MTP3-user payload). The routing-label layout is variant-specific.
+    ///
+    /// * **ITU** (Q.704) — one 32-bit little-endian word,
+    ///   `DPC(14) | OPC(14) << 14 | SLS(4) << 28`.
+    /// * **ANSI / China** (T1.111) — DPC (3 octets) then OPC (3 octets), each
+    ///   point code least-significant octet first (member, cluster, network),
+    ///   then a one-octet SLS. `variant` fixes the layout; the point codes are
+    ///   masked to the variant width, so an over-wide value can't bleed into an
+    ///   adjacent field.
+    ///
+    /// ```
+    /// use mtp3::{Mtp3Msu, NetworkIndicator, PointCode, ServiceIndicator, Variant};
+    ///
+    /// let msu = Mtp3Msu {
+    ///     si: ServiceIndicator::SCCP,
+    ///     ni: NetworkIndicator::International,
+    ///     mp: 0,
+    ///     opc: PointCode::from_components([2, 1, 3], Variant::Itu).unwrap(),
+    ///     dpc: PointCode::from_components([4, 2, 1], Variant::Itu).unwrap(),
+    ///     sls: 7,
+    ///     data: vec![0x09, 0x81, 0x03, 0x0e, 0x19],
+    /// };
+    /// let wire = msu.encode(Variant::Itu);
+    /// assert_eq!(wire, [0x03, 0x11, 0xe0, 0x02, 0x74, 0x09, 0x81, 0x03, 0x0e, 0x19]);
+    /// assert_eq!(Mtp3Msu::decode(&wire, Variant::Itu).unwrap(), msu);
+    /// ```
+    pub fn encode(&self, variant: Variant) -> Vec<u8> {
+        let sio = self.sio();
+        match variant {
+            Variant::Itu => {
+                let dpc = self.dpc.value() & 0x3FFF;
+                let opc = self.opc.value() & 0x3FFF;
+                let sls = (self.sls as u32) & 0x0F;
+                let label = dpc | (opc << 14) | (sls << 28);
+                let mut out = Vec::with_capacity(5 + self.data.len());
+                out.push(sio);
+                out.extend_from_slice(&label.to_le_bytes());
+                out.extend_from_slice(&self.data);
+                out
+            }
+            Variant::Ansi | Variant::China => {
+                let dpc = (self.dpc.value() & 0x00FF_FFFF).to_le_bytes();
+                let opc = (self.opc.value() & 0x00FF_FFFF).to_le_bytes();
+                let mut out = Vec::with_capacity(8 + self.data.len());
+                out.push(sio);
+                out.extend_from_slice(&dpc[..3]);
+                out.extend_from_slice(&opc[..3]);
+                out.push(self.sls);
+                out.extend_from_slice(&self.data);
+                out
+            }
+        }
+    }
+
+    /// Decode an on-wire MSU (as produced by [`encode`](Mtp3Msu::encode)) under
+    /// the given `variant`. Recovers the SIO fields, the OPC/DPC/SLS routing
+    /// label, and the SIF as the payload.
+    ///
+    /// Errors with [`Mtp3Error::Decode`] if the input is shorter than the SIO
+    /// plus the variant's routing label (5 octets for ITU, 8 for ANSI/China).
+    pub fn decode(bytes: &[u8], variant: Variant) -> Result<Self, Mtp3Error> {
+        let label_len = match variant {
+            Variant::Itu => 4,
+            Variant::Ansi | Variant::China => 7,
+        };
+        let header = 1 + label_len;
+        if bytes.len() < header {
+            return Err(Mtp3Error::Decode(format!(
+                "need at least {header} octets for the SIO + {variant:?} routing label, got {}",
+                bytes.len()
+            )));
+        }
+
+        let sio = bytes[0];
+        let si = ServiceIndicator(sio & 0x0F);
+        let mp = (sio >> 4) & 0x03;
+        let ni = NetworkIndicator::from_bits(sio >> 6);
+
+        let (opc, dpc, sls) = match variant {
+            Variant::Itu => {
+                let label = u32::from_le_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]);
+                let dpc = label & 0x3FFF;
+                let opc = (label >> 14) & 0x3FFF;
+                let sls = ((label >> 28) & 0x0F) as u8;
+                (opc, dpc, sls)
+            }
+            Variant::Ansi | Variant::China => {
+                let dpc = u32::from_le_bytes([bytes[1], bytes[2], bytes[3], 0]);
+                let opc = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], 0]);
+                (opc, dpc, bytes[7])
+            }
+        };
+
+        let to_pc = |value: u32| {
+            PointCode::from_value(value, variant).map_err(|e| Mtp3Error::Decode(e.to_string()))
+        };
+        Ok(Self {
+            si,
+            ni,
+            mp,
+            opc: to_pc(opc)?,
+            dpc: to_pc(dpc)?,
+            sls,
+            data: bytes[header..].to_vec(),
+        })
+    }
+}
+
 /// Network-management status for a destination.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mtp3Status {
@@ -122,6 +238,10 @@ pub enum Mtp3Error {
     /// The provider is shutting down / the link is out of service.
     #[error("mtp3-user part is not in service")]
     OutOfService,
+    /// The bytes handed to [`Mtp3Msu::decode`] are not a well-formed MSU
+    /// (too short for the SIO + routing label, or an out-of-range point code).
+    #[error("MSU decode: {0}")]
+    Decode(String),
 }
 
 /// The MTP3-User Service Access Point.
@@ -179,6 +299,221 @@ mod tests {
         };
         assert_eq!(msu.si, ServiceIndicator::SCCP);
         assert_eq!(msu.dpc.value(), 2);
+    }
+
+    // ── On-wire codec (Q.704 ITU / T1.111 ANSI) ─────────────────────────────
+
+    /// The proven ITU routing label the SS7 stack hand-rolled before this crate
+    /// owned the format: OPC 2-1-3 (4107), DPC 4-2-1 (8209), SLS 7, SI SCCP,
+    /// NI international, over an SCCP SIF. SIO = 0x03; the 32-bit little-endian
+    /// label is `8209 | (4107 << 14) | (7 << 28) = 0x7402_E011` → `11 E0 02 74`.
+    fn itu_kav() -> (Mtp3Msu, [u8; 10]) {
+        let msu = Mtp3Msu {
+            si: ServiceIndicator::SCCP,
+            ni: NetworkIndicator::International,
+            mp: 0,
+            opc: PointCode::from_components([2, 1, 3], Variant::Itu).unwrap(),
+            dpc: PointCode::from_components([4, 2, 1], Variant::Itu).unwrap(),
+            sls: 7,
+            data: vec![0x09, 0x81, 0x03, 0x0e, 0x19],
+        };
+        let wire = [
+            0x03, // SIO: NI=0 (intl), spare=0, SI=3 (SCCP)
+            0x11, 0xe0, 0x02, 0x74, // routing label, little-endian
+            0x09, 0x81, 0x03, 0x0e, 0x19, // SIF
+        ];
+        (msu, wire)
+    }
+
+    #[test]
+    fn itu_encode_is_byte_exact() {
+        let (msu, wire) = itu_kav();
+        assert_eq!(msu.encode(Variant::Itu), wire);
+    }
+
+    /// Independently reproduce the hand-rolled formula (the one still living in
+    /// ss7-stack and siphon-sigtran) and confirm the crate emits the same bytes,
+    /// so this is byte-identity to the proven layout, not a copied constant.
+    #[test]
+    fn itu_encode_matches_hand_rolled_formula() {
+        let (msu, _) = itu_kav();
+        let (dpc, opc, sls) = (8209u32, 4107u32, 7u32);
+        let label: u32 = dpc | (opc << 14) | (sls << 28);
+        let mut expected = vec![0x03];
+        expected.extend_from_slice(&label.to_le_bytes());
+        expected.extend_from_slice(&msu.data);
+        assert_eq!(msu.encode(Variant::Itu), expected);
+    }
+
+    #[test]
+    fn itu_decode_recovers_fields() {
+        let (msu, wire) = itu_kav();
+        let back = Mtp3Msu::decode(&wire, Variant::Itu).unwrap();
+        assert_eq!(back, msu);
+        assert_eq!(back.opc.value(), 4107);
+        assert_eq!(back.dpc.value(), 8209);
+        assert_eq!(back.sls, 7);
+        assert_eq!(back.si, ServiceIndicator::SCCP);
+        assert_eq!(back.ni, NetworkIndicator::International);
+    }
+
+    #[test]
+    fn itu_round_trip() {
+        let (msu, _) = itu_kav();
+        assert_eq!(
+            Mtp3Msu::decode(&msu.encode(Variant::Itu), Variant::Itu).unwrap(),
+            msu
+        );
+    }
+
+    /// Hand-built T1.111 vector. OPC 1-2-3 = (1<<16)|(2<<8)|3 = 0x01_0203, laid
+    /// out least-significant octet first as `03 02 01`; DPC 4-5-6 = 0x04_0506 as
+    /// `06 05 04`. SI SCCP, NI national (2), priority 1 → SIO = (2<<6)|(1<<4)|3 =
+    /// 0x93. SLS 0x1F in its own octet. Label order is DPC, then OPC, then SLS.
+    fn ansi_kav() -> (Mtp3Msu, [u8; 10]) {
+        let msu = Mtp3Msu {
+            si: ServiceIndicator::SCCP,
+            ni: NetworkIndicator::National,
+            mp: 1,
+            opc: PointCode::from_components([1, 2, 3], Variant::Ansi).unwrap(),
+            dpc: PointCode::from_components([4, 5, 6], Variant::Ansi).unwrap(),
+            sls: 0x1F,
+            data: vec![0xaa, 0xbb],
+        };
+        let wire = [
+            0x93, // SIO: NI=2 (national), MP=1, SI=3 (SCCP)
+            0x06, 0x05, 0x04, // DPC 4-5-6, LSO first
+            0x03, 0x02, 0x01, // OPC 1-2-3, LSO first
+            0x1F, // SLS
+            0xaa, 0xbb, // SIF
+        ];
+        (msu, wire)
+    }
+
+    #[test]
+    fn ansi_encode_is_byte_exact() {
+        let (msu, wire) = ansi_kav();
+        assert_eq!(msu.encode(Variant::Ansi), wire);
+    }
+
+    #[test]
+    fn ansi_decode_recovers_fields() {
+        let (msu, wire) = ansi_kav();
+        let back = Mtp3Msu::decode(&wire, Variant::Ansi).unwrap();
+        assert_eq!(back, msu);
+        assert_eq!(back.opc.components(), [1, 2, 3]);
+        assert_eq!(back.dpc.components(), [4, 5, 6]);
+        assert_eq!(back.mp, 1);
+        assert_eq!(back.sls, 0x1F);
+        assert_eq!(back.ni, NetworkIndicator::National);
+    }
+
+    #[test]
+    fn ansi_round_trip() {
+        let (msu, _) = ansi_kav();
+        assert_eq!(
+            Mtp3Msu::decode(&msu.encode(Variant::Ansi), Variant::Ansi).unwrap(),
+            msu
+        );
+    }
+
+    /// China takes the 24-bit ANSI-style layout, so the wire bytes match.
+    #[test]
+    fn china_matches_ansi_layout() {
+        let msu = Mtp3Msu {
+            si: ServiceIndicator::ISUP,
+            ni: NetworkIndicator::National,
+            mp: 0,
+            opc: PointCode::from_components([7, 8, 9], Variant::China).unwrap(),
+            dpc: PointCode::from_components([1, 2, 3], Variant::China).unwrap(),
+            sls: 5,
+            data: vec![0x01],
+        };
+        let ansi_shaped = Mtp3Msu {
+            opc: PointCode::from_value(msu.opc.value(), Variant::Ansi).unwrap(),
+            dpc: PointCode::from_value(msu.dpc.value(), Variant::Ansi).unwrap(),
+            ..msu.clone()
+        };
+        assert_eq!(
+            msu.encode(Variant::China),
+            ansi_shaped.encode(Variant::Ansi)
+        );
+        assert_eq!(
+            Mtp3Msu::decode(&msu.encode(Variant::China), Variant::China).unwrap(),
+            msu
+        );
+    }
+
+    #[test]
+    fn sio_packs_si_ni_mp() {
+        // SI/NI/priority land in the right SIO fields and survive the round trip.
+        for (si, ni, mp, want) in [
+            (
+                ServiceIndicator::SCCP,
+                NetworkIndicator::International,
+                0u8,
+                0x03u8,
+            ),
+            (ServiceIndicator::ISUP, NetworkIndicator::National, 0, 0x85),
+            (ServiceIndicator::SCCP, NetworkIndicator::National, 3, 0xB3),
+            (
+                ServiceIndicator(0),
+                NetworkIndicator::NationalSpare,
+                2,
+                0xE0,
+            ),
+        ] {
+            let msu = Mtp3Msu {
+                si,
+                ni,
+                mp,
+                opc: PointCode::from_value(1, Variant::Itu).unwrap(),
+                dpc: PointCode::from_value(2, Variant::Itu).unwrap(),
+                sls: 0,
+                data: vec![],
+            };
+            let wire = msu.encode(Variant::Itu);
+            assert_eq!(wire[0], want, "SIO for si={si:?} ni={ni:?} mp={mp}");
+            let back = Mtp3Msu::decode(&wire, Variant::Itu).unwrap();
+            assert_eq!((back.si, back.ni, back.mp), (si, ni, mp));
+        }
+    }
+
+    #[test]
+    fn empty_sif_round_trips() {
+        for variant in [Variant::Itu, Variant::Ansi, Variant::China] {
+            let msu = Mtp3Msu {
+                si: ServiceIndicator::SCCP,
+                ni: NetworkIndicator::International,
+                mp: 0,
+                opc: PointCode::from_value(1, variant).unwrap(),
+                dpc: PointCode::from_value(2, variant).unwrap(),
+                sls: 0,
+                data: vec![],
+            };
+            let wire = msu.encode(variant);
+            // SIO + routing label, no SIF. ITU packs the label into 4 octets;
+            // ANSI/China lay it out as DPC(3) + OPC(3) + SLS(1) = 7.
+            let label_len = if variant == Variant::Itu { 4 } else { 7 };
+            assert_eq!(wire.len(), 1 + label_len);
+            let back = Mtp3Msu::decode(&wire, variant).unwrap();
+            assert!(back.data.is_empty());
+            assert_eq!(back, msu);
+        }
+    }
+
+    #[test]
+    fn decode_rejects_short_input() {
+        // ITU needs 5 octets for SIO + label; ANSI/China need 8.
+        assert!(matches!(
+            Mtp3Msu::decode(&[0x03, 0x11, 0xe0, 0x02], Variant::Itu),
+            Err(Mtp3Error::Decode(_))
+        ));
+        assert!(Mtp3Msu::decode(&[0x03, 0x11, 0xe0, 0x02, 0x74], Variant::Itu).is_ok());
+        assert!(matches!(
+            Mtp3Msu::decode(&[0x93, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01], Variant::Ansi),
+            Err(Mtp3Error::Decode(_))
+        ));
     }
 
     /// A trivial in-memory `Mtp3UserPart` proves the trait is object-safe and

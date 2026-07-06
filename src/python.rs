@@ -8,11 +8,12 @@
 //! * `pub fn register(py, parent)` — mount `mtp3` as a submodule of another
 //!   extension, so a host can expose mtp3 without a second shared object.
 //!
-//! Scope: this is a **types / SAP** crate, not a wire codec, so the Python
-//! surface is the value types — `PointCode` / `Variant`, `ServiceIndicator`,
-//! `NetworkIndicator`, and the `Mtp3Msu` SAP-boundary struct as a data holder.
-//! The async `Mtp3UserPart` provider trait is deliberately **not** exposed (it
-//! is a Rust interface an M2PA/M3UA runtime implements, not a data type).
+//! Scope: the Python surface is the value types — `PointCode` / `Variant`,
+//! `ServiceIndicator`, `NetworkIndicator`, and the `Mtp3Msu` SAP-boundary struct.
+//! `Mtp3Msu` also carries the MTP3 routing-label codec (`encode` / `decode`, ITU
+//! Q.704 and ANSI T1.111), the one wire format this crate owns. The async
+//! `Mtp3UserPart` provider trait is deliberately **not** exposed (it is a Rust
+//! interface an M2PA/M3UA runtime implements, not a data type).
 
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
@@ -20,8 +21,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyModule};
 
 use crate::{
-    NetworkIndicator as CoreNetworkIndicator, PointCode as CorePointCode, PointCodeError,
-    ServiceIndicator as CoreServiceIndicator, Variant as CoreVariant,
+    Mtp3Msu as CoreMtp3Msu, NetworkIndicator as CoreNetworkIndicator, PointCode as CorePointCode,
+    PointCodeError, ServiceIndicator as CoreServiceIndicator, Variant as CoreVariant,
 };
 
 // ── Error mapping ───────────────────────────────────────────────────────────
@@ -314,8 +315,8 @@ impl PyNetworkIndicator {
 /// label (OPC/DPC/SLS), the SIO fields (SI/NI/priority), and the user payload.
 /// The parameters of the MTP-TRANSFER primitive (Q.701).
 ///
-/// This is a **data holder**: there is no wire encode here (mtp3 is the SAP, not
-/// a codec). A provider (MTP3 over M2PA, or M3UA) turns it into bytes.
+/// `encode` / `decode` render it to and from the on-wire MSU (SIO + routing
+/// label + SIF) for a given [`Variant`] — ITU Q.704 or ANSI T1.111.
 #[pyclass(name = "Mtp3Msu", module = "mtp3._mtp3", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyMtp3Msu {
@@ -332,6 +333,32 @@ pub struct PyMtp3Msu {
     #[pyo3(get, set)]
     pub sls: u8,
     data: Vec<u8>,
+}
+
+impl PyMtp3Msu {
+    fn to_core(&self) -> CoreMtp3Msu {
+        CoreMtp3Msu {
+            si: self.si.inner,
+            ni: self.ni.to_core(),
+            mp: self.mp,
+            opc: self.opc.inner,
+            dpc: self.dpc.inner,
+            sls: self.sls,
+            data: self.data.clone(),
+        }
+    }
+
+    fn from_core(m: CoreMtp3Msu) -> Self {
+        Self {
+            si: PyServiceIndicator { inner: m.si },
+            ni: PyNetworkIndicator::from_core(m.ni),
+            mp: m.mp,
+            opc: PyPointCode { inner: m.opc },
+            dpc: PyPointCode { inner: m.dpc },
+            sls: m.sls,
+            data: m.data,
+        }
+    }
 }
 
 #[pymethods]
@@ -368,6 +395,22 @@ impl PyMtp3Msu {
     #[setter]
     fn set_data(&mut self, data: Vec<u8>) {
         self.data = data;
+    }
+
+    /// Encode to the on-wire MSU bytes for `variant`: SIO octet + routing label
+    /// + SIF. ITU packs a 32-bit little-endian label; ANSI/China lay it out as
+    /// DPC(3) + OPC(3) + SLS(1) octets (T1.111).
+    fn encode<'py>(&self, py: Python<'py>, variant: PyVariant) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.to_core().encode(variant.to_core()))
+    }
+
+    /// Decode on-wire MSU bytes into an `Mtp3Msu` under `variant`. Raises
+    /// `Mtp3Error` if the input is too short for the SIO + routing label.
+    #[staticmethod]
+    fn decode(data: Vec<u8>, variant: PyVariant) -> PyResult<Self> {
+        CoreMtp3Msu::decode(&data, variant.to_core())
+            .map(Self::from_core)
+            .map_err(|e| Mtp3Error::new_err(e.to_string()))
     }
 
     fn __repr__(&self) -> String {
