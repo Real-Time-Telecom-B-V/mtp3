@@ -5,6 +5,24 @@ All notable changes are documented here. The format follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See
 [VERSIONING.md](VERSIONING.md) for the policy.
 
+## [1.2.0]
+
+### Added
+- **`mgmt::ManagementMessage`**: encode and decode of the signalling network
+  management messages of ITU-T Q.704 clause 15 (changeover and changeback,
+  emergency changeover, transfer-prohibited / allowed / restricted / controlled,
+  route set test, management inhibit, traffic restart allowed, data link
+  connection, user part unavailable) and the extended changeover signals of
+  Q.2210 9.8.1 (XCO / XCA, a 24-bit sequence number, as RFC 4165 4.2.3 has an
+  M2PA link use). The value is `Mtp3Msu::data` of an MSU with service indicator 0.
+- **`mgmt::TestMessage`**: the signalling link test message and its
+  acknowledgement (Q.707 5.4), service indicator 1.
+- **`mgmt::ManagementError`**: a truncated message, a spare heading code, a test
+  pattern outside 1 to 15 octets, and a variant whose formats are not
+  implemented. Only the ITU formats are: ANSI and China are refused, not guessed.
+
+Not in the Python wheel yet.
+
 ## [1.1.0]
 
 ### Added
@@ -40,6 +58,7 @@ First release — the MTP3-User Service Access Point for the SS7 stack.
   format, components), consolidated here so the whole stack shares one type.
 - Tests incl. an async in-memory provider and the composable-router pattern.
 
+[1.2.0]: https://github.com/Real-Time-Telecom-B-V/mtp3/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Real-Time-Telecom-B-V/mtp3/releases/tag/v1.1.0
 [1.0.1]: https://github.com/Real-Time-Telecom-B-V/mtp3/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Real-Time-Telecom-B-V/mtp3/releases/tag/v1.0.0

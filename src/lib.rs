@@ -13,6 +13,9 @@
 //! and a [composite router](Mtp3UserPart) that dispatches by destination can
 //! itself implement the trait, unifying several providers behind one SAP.
 //!
+//! [`mgmt`] holds the codec of the messages MTP3 itself exchanges: signalling
+//! network management (Q.704 clause 15) and the signalling link test (Q.707).
+//!
 //! This crate is pure and transport-independent (no SCTP, no async runtime of
 //! its own) so it stays portable and testable; the providers pull in the
 //! Linux-only SCTP transport behind their own feature flags.
@@ -32,6 +35,7 @@
 //! assert_eq!(msu.si, ServiceIndicator::SCCP);
 //! ```
 
+pub mod mgmt;
 pub mod point_code;
 pub mod sap;
 
