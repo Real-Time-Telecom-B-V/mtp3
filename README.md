@@ -106,6 +106,25 @@ let wire = msu.encode(Variant::Itu);
 assert_eq!(msu, Mtp3Msu::decode(&wire, Variant::Itu).unwrap());
 ```
 
+
+## Management and link test messages
+
+`mgmt::ManagementMessage` is the content of an MSU with service indicator 0:
+the signalling network management messages of ITU-T Q.704 clause 15 and the
+extended changeover signals of Q.2210 9.8.1. `mgmt::TestMessage` is the
+signalling link test of Q.707 (service indicator 1). Both encode to and decode
+from `Mtp3Msu::data`; the signalling link code of a link-related message is the
+label's `sls`. ITU formats only: another variant is refused, not guessed.
+
+```rust
+use mtp3::mgmt::ManagementMessage;
+use mtp3::{PointCode, Variant};
+
+let destination = PointCode::from_value(2000, Variant::Itu).unwrap();
+let tfp = ManagementMessage::Tfp { destination };
+assert_eq!(tfp.encode(Variant::Itu).unwrap(), [0x14, 0xD0, 0x07]);
+```
+
 ## Where it fits
 
 ```
